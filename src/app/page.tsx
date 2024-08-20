@@ -6,66 +6,76 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { CheckCheck, Pencil, Trash2 } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createTodo, getAll, deleteTodo, updateTodo } from "@/actions";
 
-var itens = [
-  {id: 1, desc: "It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content here', making it look like readable English"},
-  {id: 2, desc: "Abobrinha"},
-]
+interface homework {
+  id: number,
+  description: string
+}
 
 export default function Home() {
-  const [editingItemId, setEditingItemId] = useState(0);
-  const [inputValue, setInputValue] = useState("");
-  const [newItemValue, setNewItemValue] = useState("");
-  // const [items, setItems] = useState(itens);
+  const [itemId, setItemId] = useState(0);
+  const [description, setDescription] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [items, setItems] = useState<homework[]>([]);
 
-  const handleEditClick = (itemId: number) => {
-    const item = itens.find((item) => item.id === itemId);
-    if (item) {
-      setEditingItemId(itemId);
-      setInputValue(item.desc);
-    }
-  }
-
-  const handleRemoveClick = (itemId: number) => {
-    const updatedItems = itens.filter((item) => item.id !== itemId);
-    itens = updatedItems;
-  };
-
-  const handleNewItemChange = (event: any) => {
-    setNewItemValue(event.target.value);
-  };
-
-  const handleInputChange = (event: any) => {
-    setInputValue(event.target.value);
-  }
-
-  const handleSaveClick = () => {
-    // Atualize o item na lista com o novo valor do input
-    const updatedItens = itens.map((item) => {
-      if (item.id === editingItemId) {
-        return { ...item, desc: inputValue };
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        const items = await getAll();
+        setItems(items);
       }
-      return item;
-    });
+      catch (error){
+        console.error(`Error: ${error}`)
+      }
+    }
 
-    // Limpe o estado de edição
-    setEditingItemId(0);
-    setInputValue("");
+    fetchItems()
+  }, []);
 
-    itens = updatedItens
+  const handleCreateItem = async () => {
+    try {
+      const item = await createTodo(description);
+      console.log(`Item created: ${item}`);
+      setDescription('');
+    }
+    catch (error) {
+      console.error(`Error: ${error}`);
+    }
   }
 
-  const handleSubmit = (event: any) => {
-    event.preventDefault();
-    const newItem = {
-      id: itens.length + 1,
-      desc: newItemValue,
+  const handleRemoveItem = async (id: number) => {
+    await deleteTodo(id);
+    setItems(items.filter(item => item.id !== id));
+  }
+
+  const handleUpdateItem = async (id: number, desc: string) => {
+    try {
+      const updatedItem = await updateTodo(id, desc);
+      setItems(items.map(item => {
+        if (item.id === id) {
+          return { ...updatedItem, description: newDescription};
+        }
+        return item;
+      }))
+      console.log(`Item updated`);
     }
-    // Adicione o novo item à lista
-    itens.push(newItem);
-    // Limpe o valor do campo de entrada
-    setNewItemValue("");
+    catch (error) {
+      console.error(`Error: ${error}`);
+    } 
+    finally {
+      setItemId(0);
+      setNewDescription('');
+    }
+  }
+
+  const handleEditClick = (id: number) => {
+    const item = items.find(item => item.id === id);
+    if (item) {
+      setItemId(item.id);
+      setNewDescription(item.description);
+    }
   }
  
   return (
@@ -77,30 +87,30 @@ export default function Home() {
         </CardHeader>
         <CardContent>
         <ul>
-          {itens.map(item =>
+          {items.map(item =>
             <li key={item.id}>
             <div className="flex item-center justify-between ml-8 my-3">
               <div className="flex item-center space-x-2">
                 <Checkbox id="terms1"/>
-                {editingItemId === item.id ? (
+                {itemId === Number(item.id) ? (
                   <>
-                    <Input className="h-5" value={inputValue} onChange={handleInputChange} />
+                    <Input className="h-5" value={newDescription} onChange={e => setNewDescription(e.target.value)}/>
                   </>
                 ) : (
-                  <Label className="text-xs w-fit" >{item.desc}</Label>
+                  <Label className="text-xs w-fit" >{item.description}</Label>
                 )}
               </div>
               <div className="flex item-center space-x-2 mr-8">
-                {editingItemId === item.id ? (
-                  <Button onClick={handleSaveClick} variant="outline" size="icon" className="h-5 w-5 ml-3">
+                {itemId === Number(item.id) ? (
+                  <Button onClick={() => handleUpdateItem(Number(item.id), newDescription)} variant="outline" size="icon" className="h-5 w-5 ml-3">
                     <CheckCheck className="h-4 w-4"></CheckCheck>
                   </Button>
                 ) : (
                   <>
-                    <Button onClick={() => handleEditClick(item.id)} variant="outline" size="icon" className="h-5 w-5 ml-3">
+                    <Button onClick={() => handleEditClick(Number(item.id))} variant="outline" size="icon" className="h-5 w-5 ml-3">
                       <Pencil className="h-4 w-4"></Pencil>
                     </Button>
-                    <Button onClick={() => handleRemoveClick(item.id)} variant="outline" size="icon" className="h-5 w-5">
+                    <Button onClick={() => handleRemoveItem(Number(item.id))} variant="outline" size="icon" className="h-5 w-5">
                       <Trash2 className="h-4 w-4"></Trash2>
                     </Button>
                   </>
@@ -112,8 +122,8 @@ export default function Home() {
         </ul>
         </CardContent>
         <CardFooter>
-          <form className="w-full flex gap-2" onSubmit={handleSubmit}>
-            <Input placeholder="Digite uma tarefa" value={newItemValue} onChange={handleNewItemChange}/>
+          <form className="w-full flex gap-2" onSubmit={handleCreateItem}>
+            <Input placeholder="Digite uma tarefa" value={description} onChange={e => setDescription(e.target.value)}/>
             <Button type="submit">Criar</Button>
           </form>
         </CardFooter>
