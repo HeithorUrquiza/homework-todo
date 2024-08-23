@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import db from "../../../../prisma/db";
-import { list } from "postcss";
 
 export async function GET() {
     try {
