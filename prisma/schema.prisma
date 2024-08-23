@@ -17,6 +17,7 @@ datasource db {
 model Homework {
   id Int @id @default(autoincrement())
   description String @unique
+  isChecked Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
